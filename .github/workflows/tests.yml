@@ -1,0 +1,122 @@
+# ============================================================
+# GitHub Actions - CI: Ejecutar Tests con Pytest
+# ============================================================
+# Se ejecuta en cada push y pull request al branch main/master.
+# Garantiza que la lógica del Feature Store no está rota.
+# ============================================================
+
+name: 🧪 Tests - Feature Store
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+  pull_request:
+    branches:
+      - main
+      - master
+
+# Cancela ejecuciones anteriores si llega un nuevo push al mismo branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: 🐍 Pytest - Feature Store Tests
+    runs-on: ubuntu-latest
+
+    # Probar con múltiples versiones de Python para mayor compatibilidad
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+      fail-fast: false
+
+    steps:
+      # ── 1. Checkout del código ──────────────────────────────
+      - name: 📥 Checkout del repositorio
+        uses: actions/checkout@v4
+
+      # ── 2. Configurar Python ────────────────────────────────
+      - name: 🐍 Configurar Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      # ── 3. Instalar dependencias ────────────────────────────
+      - name: 📦 Instalar dependencias de la app
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r app/requirements.txt
+
+      - name: 🔬 Instalar dependencias de testing
+        run: |
+          pip install pytest pytest-cov pytest-html
+
+      # ── 4. Verificar estructura del proyecto ──────────────────
+      - name: 📁 Verificar estructura de archivos
+        run: |
+          echo "=== Estructura del proyecto ==="
+          find . -type f -name "*.py" | grep -v __pycache__ | sort
+          echo ""
+          echo "=== Archivos de datos ==="
+          ls -la data/processed/ || echo "Directorio data/processed no encontrado"
+          echo ""
+          echo "=== Modelos ==="
+          ls -la models/ || echo "Directorio models no encontrado"
+
+      # ── 5. Ejecutar los tests con pytest ──────────────────────
+      - name: 🧪 Ejecutar pytest - Feature Store
+        run: |
+          pytest tests/ \
+            --verbose \
+            --tb=short \
+            --cov=app \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --html=reports/test-report.html \
+            --self-contained-html \
+            -p no:cacheprovider
+        continue-on-error: false
+
+      # ── 6. Subir reporte de cobertura ─────────────────────────
+      - name: 📊 Subir reporte de cobertura
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report-py${{ matrix.python-version }}
+          path: |
+            coverage.xml
+            reports/test-report.html
+          retention-days: 30
+
+      # ── 7. Mostrar resumen de coverage ────────────────────────
+      - name: 📈 Resumen de cobertura
+        if: always()
+        run: |
+          echo "## 📊 Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          python -m coverage report --format=markdown >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Coverage no disponible" >> $GITHUB_STEP_SUMMARY
+
+  # ── Job de notificación de resultados ──────────────────────
+  notify:
+    name: 📬 Resumen de Tests
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: ✅ Tests Pasados
+        if: needs.test.result == 'success'
+        run: |
+          echo "## ✅ Todos los tests pasaron!" >> $GITHUB_STEP_SUMMARY
+          echo "El Feature Store está funcionando correctamente." >> $GITHUB_STEP_SUMMARY
+
+      - name: ❌ Tests Fallidos
+        if: needs.test.result == 'failure'
+        run: |
+          echo "## ❌ Algunos tests fallaron!" >> $GITHUB_STEP_SUMMARY
+          echo "Revisar los logs para identificar qué parte del Feature Store está rota." >> $GITHUB_STEP_SUMMARY
+          exit 1

@@ -139,3 +139,16 @@ models/*.h5
 .idea/
 *.swp
 *.swo
+
+# Docker
+.dockerignore
+
+# Pytest & Coverage
+.pytest_cache/
+__pycache__/
+htmlcov/
+coverage.xml
+.coverage
+
+# Reportes generados por los tests
+reports/
