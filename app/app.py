@@ -8,7 +8,6 @@ from datetime import datetime
 import warnings
 warnings.filterwarnings('ignore')
 
-# Configuración de la página
 st.set_page_config(
     page_title="Simulador de Ventas - Noviembre 2025",
     page_icon="📊",
@@ -16,7 +15,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos CSS personalizados
 st.markdown("""
 <style>
     /* Paleta de colores morada/azul */
@@ -82,7 +80,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Función para cargar datos y modelo
 @st.cache_resource
 def cargar_modelo():
     """Carga el modelo entrenado"""
@@ -104,7 +101,6 @@ def cargar_datos():
         st.error(f"❌ Error al cargar los datos: {str(e)}")
         st.stop()
 
-# Función para realizar predicciones recursivas
 def predecir_recursivo(df_producto, modelo, ajuste_descuento, escenario_competencia):
     """
     Realiza predicciones recursivas día por día actualizando los lags.
@@ -118,73 +114,71 @@ def predecir_recursivo(df_producto, modelo, ajuste_descuento, escenario_competen
     Returns:
         DataFrame con predicciones y variables actualizadas
     """
-    # Crear copia para no modificar el original
+
     df = df_producto.copy().sort_values('fecha').reset_index(drop=True)
     
-    # Almacenar predicciones
+    
     predicciones = []
     
-    # Nombres de las columnas de lag
     lag_cols = [f'unidades_vendidas_lag{i}' for i in range(1, 8)]
     ma_col = 'unidades_vendidas_mm7'
     
-    # Iterar día por día
     for idx in range(len(df)):
         fila = df.iloc[idx].copy()
         
-        # Recalcular precio_venta basado en ajuste de descuento
+        
         precio_base = fila['precio_base']
         descuento_original = fila['descuento_porcentaje']
         
-        # Aplicar ajuste al descuento
+        
         nuevo_descuento = descuento_original + ajuste_descuento
         nuevo_descuento = max(-100, min(100, nuevo_descuento))  # Limitar entre -100 y 100
         
         nuevo_precio_venta = precio_base * (1 - nuevo_descuento / 100)
         
-        # Actualizar precio_venta y descuento_porcentaje
+        
         fila['precio_venta'] = nuevo_precio_venta
         fila['descuento_porcentaje'] = nuevo_descuento
         
-        # Recalcular precios de competencia según escenario
+        
         factor_competencia = 1 + (escenario_competencia / 100)
         fila['Amazon'] = df.iloc[idx]['Amazon'] * factor_competencia
         fila['Decathlon'] = df.iloc[idx]['Decathlon'] * factor_competencia
         fila['Deporvillage'] = df.iloc[idx]['Deporvillage'] * factor_competencia
         
-        # Recalcular precio_competencia (promedio de los 3)
+        
         fila['precio_competencia'] = (fila['Amazon'] + fila['Decathlon'] + fila['Deporvillage']) / 3
         
-        # Recalcular ratio_precio
+        
         if fila['precio_competencia'] > 0:
             fila['ratio_precio'] = fila['precio_venta'] / fila['precio_competencia']
         else:
             fila['ratio_precio'] = 1.0
         
-        # Preparar features para predicción
+        
         features = fila[modelo.feature_names_in_].values.reshape(1, -1)
         
-        # Hacer predicción
+        
         prediccion = modelo.predict(features)[0]
         prediccion = max(0, prediccion)  # No permitir predicciones negativas
         
         # Guardar predicción
         predicciones.append(prediccion)
         
-        # Actualizar lags para el siguiente día (si no es el último día)
+       
         if idx < len(df) - 1:
             # Desplazar lags: lag_7 <- lag_6, lag_6 <- lag_5, ..., lag_1 <- predicción actual
             for i in range(6, 0, -1):
                 df.at[idx + 1, f'unidades_vendidas_lag{i+1}'] = df.at[idx, f'unidades_vendidas_lag{i}']
             
-            # Actualizar lag_1 con la predicción actual
+            
             df.at[idx + 1, 'unidades_vendidas_lag1'] = prediccion
             
-            # Actualizar media móvil (últimas 7 predicciones)
+            
             if idx >= 6:
                 ultimas_7 = predicciones[-7:]
             else:
-                # Para los primeros días, usar las predicciones disponibles + lags anteriores
+                
                 ultimas_7 = predicciones.copy()
                 for i in range(1, 8 - len(predicciones)):
                     if f'unidades_vendidas_lag{i}' in df.columns:
@@ -193,7 +187,7 @@ def predecir_recursivo(df_producto, modelo, ajuste_descuento, escenario_competen
             
             df.at[idx + 1, ma_col] = np.mean(ultimas_7)
         
-        # Actualizar también en la fila actual para el resultado final
+        
         df.at[idx, 'precio_venta'] = nuevo_precio_venta
         df.at[idx, 'descuento_porcentaje'] = nuevo_descuento
         df.at[idx, 'Amazon'] = fila['Amazon']
@@ -202,31 +196,31 @@ def predecir_recursivo(df_producto, modelo, ajuste_descuento, escenario_competen
         df.at[idx, 'precio_competencia'] = fila['precio_competencia']
         df.at[idx, 'ratio_precio'] = fila['ratio_precio']
     
-    # Agregar predicciones al dataframe
+    
     df['unidades_predichas'] = predicciones
     df['ingresos_proyectados'] = df['unidades_predichas'] * df['precio_venta']
     
     return df
 
-# Cargar modelo y datos
+
 modelo = cargar_modelo()
 df_inferencia = cargar_datos()
 
-# SIDEBAR - Controles de simulación
+
 st.sidebar.markdown("# 🎛️ Controles de Simulación")
 st.sidebar.markdown("---")
 
-# Obtener lista de productos únicos
+
 productos = sorted(df_inferencia['nombre'].unique())
 
-# Selector de producto
+
 producto_seleccionado = st.sidebar.selectbox(
     "📦 Seleccionar Producto",
     productos,
     help="Elige el producto para simular sus ventas"
 )
 
-# Slider de ajuste de descuento
+
 ajuste_descuento = st.sidebar.slider(
     "💰 Ajuste de Descuento (%)",
     min_value=-50,
@@ -236,7 +230,7 @@ ajuste_descuento = st.sidebar.slider(
     help="Ajusta el descuento del producto (positivo = más descuento, negativo = menos descuento)"
 )
 
-# Selector de escenario de competencia
+
 st.sidebar.markdown("### 🏪 Escenario de Competencia")
 escenario_competencia = st.sidebar.radio(
     "Ajuste de precios de la competencia:",
@@ -247,15 +241,15 @@ escenario_competencia = st.sidebar.radio(
 
 st.sidebar.markdown("---")
 
-# Botón de simulación
+
 simular = st.sidebar.button("🚀 Simular Ventas", use_container_width=True)
 
-# ZONA PRINCIPAL
+
 st.markdown("# 📊 Dashboard de Simulación de Ventas")
 st.markdown(f"### Predicciones para **{producto_seleccionado}** - Noviembre 2025")
 st.markdown("---")
 
-# Ejecutar simulación
+
 if simular or 'df_resultado' not in st.session_state:
     with st.spinner('🔄 Procesando predicciones recursivas...'):
         # Filtrar datos para el producto seleccionado

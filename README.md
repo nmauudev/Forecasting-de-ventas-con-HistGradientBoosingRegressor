@@ -1,4 +1,4 @@
-# 📊 Simulador de Ventas - Noviembre 2025
+# Simulador de Ventas - Noviembre 2025
 
 Aplicación de Machine Learning para simular y predecir las ventas de noviembre 2025 por producto, con análisis de escenarios de descuento y competencia.
 
@@ -6,7 +6,7 @@ Aplicación de Machine Learning para simular y predecir las ventas de noviembre 
 
 ---
 
-## 🏗️ Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
 Forecasting de ventas/
@@ -35,7 +35,7 @@ Forecasting de ventas/
 
 ---
 
-## 🐳 Despliegue con Docker
+## Despliegue con Docker
 
 ### Opción 1: Docker Compose (Recomendado)
 
@@ -67,7 +67,7 @@ La aplicación estará disponible en: **http://localhost:8501**
 
 ---
 
-## 🧪 Tests - Feature Store
+## Tests - Feature Store
 
 Los tests garantizan que la lógica del Feature Store (predicciones recursivas, actualización de lags, cálculo de precios) no se rompa al subir código nuevo.
 
@@ -105,7 +105,7 @@ pytest tests/ -v --html=reports/test-report.html
 
 ---
 
-## ⚙️ CI/CD - GitHub Actions
+## CI/CD - GitHub Actions
 
 El workflow `.github/workflows/tests.yml` se ejecuta automáticamente en cada **push** y **pull request** a `main`/`master`.
 
@@ -120,7 +120,7 @@ push a main → GitHub Actions:
 
 ---
 
-## 🚀 Instalación Local (sin Docker)
+## Instalación Local (sin Docker)
 
 ```bash
 # 1. Crear entorno virtual
@@ -137,7 +137,7 @@ streamlit run app/app.py
 
 ---
 
-## 📊 Funcionalidades del Dashboard
+## Funcionalidades del Dashboard
 
 - **Selector de producto**: 24 productos disponibles para noviembre 2025
 - **Ajuste de descuento**: Slider -50% a +50% con impacto en tiempo real
